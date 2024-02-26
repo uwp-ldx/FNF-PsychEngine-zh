@@ -1219,7 +1219,7 @@ class PlayState extends MusicBeatState
 		vocals.play();
 		opponentVocals.play();
 
-		if(startOnTime > 0) setSongTime(startOnTime - 500);
+		setSongTime(Math.max(0, startOnTime - 500));
 		startOnTime = 0;
 
 		if(paused) {
@@ -1674,17 +1674,22 @@ class PlayState extends MusicBeatState
 		if (startedCountdown && !paused)
 		{
 			Conductor.songPosition += elapsed * 1000 * playbackRate;
-			if(checkIfDesynced)
+			if (Conductor.songPosition >= 0)
 			{
-				var diff:Float = 20 * playbackRate;
-				var timeSub:Float = Conductor.songPosition - Conductor.offset;
-				if (Math.abs(FlxG.sound.music.time - timeSub) > diff
-					|| (opponentVocals.length > Conductor.songPosition && Math.abs(vocals.time - timeSub) > diff)
-					|| (opponentVocals.length > Conductor.songPosition && Math.abs(opponentVocals.time - timeSub) > diff))
+				var timeDiff:Float = Math.abs(FlxG.sound.music.time - Conductor.songPosition - Conductor.offset);
+				if(timeDiff > 15 * playbackRate)
+					Conductor.songPosition = FlxMath.lerp(Conductor.songPosition, FlxG.sound.music.time, FlxMath.bound(elapsed * 10, 0, 1));
+
+				if (timeDiff > 25 * playbackRate)
+					trace('Warning! Delay is too fucking high!!');
+				
+				#if debug
+				if(FlxG.keys.justPressed.K)
 				{
-					resyncVocals();
+					trace('Times: ' + FlxG.sound.music.time, vocals.time, opponentVocals.time);
+					trace('Difference: ' + (FlxG.sound.music.time - Conductor.songPosition));
 				}
-				checkIfDesynced = false;
+				#end
 			}
 		}
 
@@ -3061,13 +3066,9 @@ class PlayState extends MusicBeatState
 		super.destroy();
 	}
 
-	var checkIfDesynced:Bool = false;
 	var lastStepHit:Int = -1;
 	override function stepHit()
 	{
-		if (SONG.needsVoices && FlxG.sound.music.time >= -ClientPrefs.data.noteOffset)
-			checkIfDesynced = true;
-
 		super.stepHit();
 
 		if(curStep == lastStepHit) {
